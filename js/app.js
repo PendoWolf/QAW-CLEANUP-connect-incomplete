@@ -111,7 +111,11 @@ function renderShell(session, active) {
   `;
 
   document.getElementById("logout-btn").addEventListener("click", () => {
-    trackPendo("signed_out");
+    const session = getSession();
+    trackPendo("signed_out", {
+      role: session ? session.role : "",
+      session_page: currentPage(),
+    });
     clearSession();
     window.location.replace("index.html");
   });
@@ -124,12 +128,27 @@ function renderShell(session, active) {
   document.getElementById("global-search").addEventListener("input", onGlobalSearch);
 }
 
+let _searchDebounce = null;
+
 function onGlobalSearch(event) {
   const query = event.target.value.trim().toLowerCase();
   const page = currentPage();
   if (page === "list") renderList(query);
   if (page === "board") renderBoard(query);
   if (page === "home") renderHome(query);
+
+  clearTimeout(_searchDebounce);
+  if (query) {
+    _searchDebounce = setTimeout(() => {
+      const allTasks = getTasks();
+      trackPendo("task_searched", {
+        query: query.substring(0, 100),
+        results_count: allTasks.filter((t) => matchesQuery(t, query)).length,
+        source_page: page,
+        total_task_count: allTasks.length,
+      });
+    }, 400);
+  }
 }
 
 function matchesQuery(task, query) {
@@ -167,14 +186,25 @@ function onSaveTask(event) {
   if (existingId) {
     const index = tasks.findIndex((task) => task.id === existingId);
     if (index >= 0) tasks[index] = { ...tasks[index], ...payload };
-    trackPendo("task_updated", { status: payload.status, priority: payload.priority });
+    trackPendo("task_updated", {
+      status: payload.status,
+      priority: payload.priority,
+      has_notes: payload.notes.length > 0,
+      title_length: payload.title.length,
+    });
   } else {
     tasks.unshift({
       id: uid("task"),
       createdAt: Date.now(),
       ...payload,
     });
-    trackPendo("task_created", { status: payload.status, priority: payload.priority });
+    trackPendo("task_created", {
+      status: payload.status,
+      priority: payload.priority,
+      has_notes: payload.notes.length > 0,
+      title_length: payload.title.length,
+      total_task_count: tasks.length,
+    });
   }
 
   setTasks(tasks);
@@ -183,17 +213,31 @@ function onSaveTask(event) {
 }
 
 function deleteTask(id) {
-  setTasks(getTasks().filter((task) => task.id !== id));
-  trackPendo("task_deleted");
+  const tasks = getTasks();
+  const task = tasks.find((t) => t.id === id);
+  setTasks(tasks.filter((t) => t.id !== id));
+  trackPendo("task_deleted", {
+    status: task ? task.status : "",
+    priority: task ? task.priority : "",
+    task_age_days: task ? Math.floor((Date.now() - task.createdAt) / 86400000) : 0,
+    source_page: currentPage(),
+  });
   refreshPage();
 }
 
 function moveTask(id, status) {
-  const tasks = getTasks().map((task) =>
+  const allTasks = getTasks();
+  const existing = allTasks.find((t) => t.id === id);
+  const tasks = allTasks.map((task) =>
     task.id === id ? { ...task, status } : task
   );
   setTasks(tasks);
-  trackPendo("task_moved", { status });
+  trackPendo("task_moved", {
+    status,
+    previous_status: existing ? existing.status : "",
+    priority: existing ? existing.priority : "",
+    source_page: currentPage(),
+  });
   refreshPage();
 }
 
@@ -523,15 +567,25 @@ function renderSettings() {
     };
     setSession(next);
     identifyPendo(next);
-    trackPendo("profile_updated", { role: next.role });
+    trackPendo("profile_updated", {
+      role: next.role,
+      previous_role: session.role,
+      name_changed: next.name !== session.name,
+      email_changed: next.email !== session.email,
+    });
     renderShell(next, "settings");
     renderSettings();
   });
 
   document.getElementById("reset-data").addEventListener("click", () => {
+    const tasksBefore = getTasks();
+    const seedIds = new Set(seedTasks().map((t) => t.id));
     resetWorkspace();
     getTasks();
-    trackPendo("sample_data_reset");
+    trackPendo("sample_data_reset", {
+      tasks_before_reset: tasksBefore.length,
+      had_custom_tasks: tasksBefore.some((t) => !seedIds.has(t.id)),
+    });
     window.location.href = "home.html";
   });
 }
