@@ -62,7 +62,7 @@
         };
         setSession(next);
         initPendo(next);
-        trackPendo("signed_in", { role: next.role });
+        trackPendo("signed_in", { role: next.role, email_domain: next.email.split("@")[1] || "" });
         window.location.href = "home.html";
       });
     </script>
