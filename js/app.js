@@ -124,12 +124,40 @@ function renderShell(session, active) {
   document.getElementById("global-search").addEventListener("input", onGlobalSearch);
 }
 
+const SEARCH_TRACK_DELAY_MS = 600;
+let searchTrackTimer = null;
+let lastTrackedSearch = "";
+
 function onGlobalSearch(event) {
   const query = event.target.value.trim().toLowerCase();
   const page = currentPage();
   if (page === "list") renderList(query);
   if (page === "board") renderBoard(query);
   if (page === "home") renderHome(query);
+  scheduleSearchTracking(query, page);
+}
+
+// Fires task_search_performed once the user stops typing, after the Home,
+// Board, or List view has been filtered. Clearing the box is not a search.
+function scheduleSearchTracking(query, page) {
+  clearTimeout(searchTrackTimer);
+  if (!query) {
+    lastTrackedSearch = "";
+    return;
+  }
+  if (page !== "home" && page !== "board" && page !== "list") return;
+  searchTrackTimer = setTimeout(() => {
+    const searchKey = page + ":" + query;
+    if (searchKey === lastTrackedSearch) return;
+    lastTrackedSearch = searchKey;
+    const resultsCount = getTasks().filter((task) => matchesQuery(task, query)).length;
+    trackPendo("task_search_performed", {
+      query_length: query.length,
+      results_count: resultsCount,
+      page,
+      has_results: resultsCount > 0,
+    });
+  }, SEARCH_TRACK_DELAY_MS);
 }
 
 function matchesQuery(task, query) {
