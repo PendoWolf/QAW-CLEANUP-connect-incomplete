@@ -8,7 +8,7 @@
     var v, w, x, y, z;
     o = p[d] = p[d] || {};
     o._q = o._q || [];
-    v = ["initialize", "identify", "updateOptions", "pageLoad", "track"];
+    v = ["initialize", "identify", "updateOptions", "pageLoad", "track", "trackAgent"];
     for (w = 0, x = v.length; w < x; ++w)
       (function (m) {
         o[m] =
@@ -25,7 +25,7 @@
   })(window, document, "script", "pendo");
 
   window.__pendoReady = true;
-})(window.APP_CONFIG.pendoApiKey);
+})("e19073e4-b457-41c4-aa1a-5cd645b55fe6");
 
 function pendoVisitorPayload(session) {
   return {
