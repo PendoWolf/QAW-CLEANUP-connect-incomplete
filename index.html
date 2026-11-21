@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign in · Keel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=Fraunces:opsz,wght@9..144,560&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="auth-body">
+    <main class="auth-card" data-pendo="sign-in-card">
+      <p class="eyebrow">No backend · local only</p>
+      <h1>Sign in to Keel</h1>
+      <p class="lede">Identify a visitor, then tag pages and features. Credentials never leave this browser.</p>
+      <p class="notice" id="pendo-status">Pendo API key is not set yet. Add it in js/config.js when you are ready to capture.</p>
+      <form id="sign-in-form" data-pendo="sign-in-form">
+        <label>
+          Full name
+          <input name="name" autocomplete="name" required placeholder="Alex Rivera" data-pendo="sign-in-name" />
+        </label>
+        <label>
+          Email
+          <input name="email" type="email" autocomplete="email" required placeholder="alex@example.com" data-pendo="sign-in-email" />
+        </label>
+        <label>
+          Role
+          <select name="role" data-pendo="sign-in-role">
+            <option>QA Engineer</option>
+            <option>Product Manager</option>
+            <option>Designer</option>
+            <option>Engineer</option>
+          </select>
+        </label>
+        <button type="submit" class="primary-btn" data-pendo="sign-in-submit">Enter workspace</button>
+      </form>
+    </main>
+    <script src="js/config.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/pendo.js"></script>
+    <script>
+      const session = getSession();
+      if (session) window.location.replace("home.html");
+
+      const status = document.getElementById("pendo-status");
+      if (window.APP_CONFIG.pendoApiKey !== "YOUR_PENDO_API_KEY") {
+        status.textContent = "Pendo agent is loaded. Sign in will initialize the visitor.";
+      }
+
+      document.getElementById("sign-in-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const next = {
+          visitorId: "visitor-" + btoa(form.email.value.trim()).replace(/=+/g, "").slice(0, 18),
+          name: form.name.value.trim(),
+          email: form.email.value.trim(),
+          role: form.role.value,
+        };
+        setSession(next);
+        initPendo(next);
+        trackPendo("signed_in", { role: next.role });
+        window.location.href = "home.html";
+      });
+    </script>
+  </body>
+</html>
