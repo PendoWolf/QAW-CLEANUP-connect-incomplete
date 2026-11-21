@@ -124,12 +124,32 @@ function renderShell(session, active) {
   document.getElementById("global-search").addEventListener("input", onGlobalSearch);
 }
 
+const SEARCH_TRACK_DELAY_MS = 800;
+const SEARCHABLE_PAGES = ["home", "board", "list"];
+let searchTrackTimer = null;
+
 function onGlobalSearch(event) {
   const query = event.target.value.trim().toLowerCase();
   const page = currentPage();
   if (page === "list") renderList(query);
   if (page === "board") renderBoard(query);
   if (page === "home") renderHome(query);
+  scheduleSearchTrack(query, page);
+}
+
+// Tracks a settled global search (debounced) with the query length and match counts.
+function scheduleSearchTrack(query, page) {
+  clearTimeout(searchTrackTimer);
+  if (!query || !SEARCHABLE_PAGES.includes(page)) return;
+  searchTrackTimer = setTimeout(() => {
+    const tasks = getTasks();
+    trackPendo("task_search_performed", {
+      query_length: query.length,
+      results_count: tasks.filter((task) => matchesQuery(task, query)).length,
+      page,
+      total_tasks: tasks.length,
+    });
+  }, SEARCH_TRACK_DELAY_MS);
 }
 
 function matchesQuery(task, query) {
