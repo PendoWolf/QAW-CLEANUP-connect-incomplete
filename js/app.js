@@ -130,6 +130,34 @@ function onGlobalSearch(event) {
   if (page === "list") renderList(query);
   if (page === "board") renderBoard(query);
   if (page === "home") renderHome(query);
+  scheduleSearchTracking(page, query);
+}
+
+const SEARCH_PAGES = ["home", "board", "list"];
+const SEARCH_TRACK_DELAY_MS = 600;
+let searchTrackTimer = null;
+let lastTrackedSearch = "";
+
+// Tracks a settled global search (debounced after typing stops) so each
+// keystroke doesn't fire its own event. Sends the page, query length, and
+// how many tasks matched. The query text itself isn't sent.
+function scheduleSearchTracking(page, query) {
+  clearTimeout(searchTrackTimer);
+  if (!query || !SEARCH_PAGES.includes(page)) {
+    lastTrackedSearch = "";
+    return;
+  }
+  searchTrackTimer = setTimeout(() => {
+    if (query === lastTrackedSearch) return;
+    lastTrackedSearch = query;
+    const resultsCount = getTasks().filter((task) => matchesQuery(task, query)).length;
+    trackPendo("task_search_performed", {
+      page,
+      query_length: query.length,
+      results_count: resultsCount,
+      has_results: resultsCount > 0,
+    });
+  }, SEARCH_TRACK_DELAY_MS);
 }
 
 function matchesQuery(task, query) {
